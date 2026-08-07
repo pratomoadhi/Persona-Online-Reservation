@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  PERSONA
+  ADMIN
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  BOOKING
+  MESSAGE
+  SYSTEM
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  avatarUrl    String?
+  role         Role     @default(USER)
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  persona       Persona?
+  reservations  Reservation[]
+  reviews       Review[]
+  notifications Notification[]
+}
+
+model Persona {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  headline    String
+  bio         String?
+  hourlyRate  Float?
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills        PersonaSkill[]
+  availability  Availability[]
+  reservations  Reservation[]
+  reviews       Review[]
+
+  @@index([userId])
+}
+
+model Skill {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  category  String?
+  createdAt DateTime @default(now())
+
+  personas PersonaSkill[]
+}
+
+model PersonaSkill {
+  personaId String
+  skillId   String
+  level     SkillLevel @default(BEGINNER)
+  createdAt DateTime   @default(now())
+
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([personaId, skillId])
+  @@index([personaId])
+  @@index([skillId])
+}
+
+model Availability {
+  id        String   @id @default(uuid())
+  personaId String
+  startTime DateTime
+  endTime   DateTime
+  isBooked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persona     Persona      @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  reservation Reservation?
+
+  @@index([personaId, startTime])
+  @@index([personaId, isBooked])
+}
+
+model Reservation {
+  id             String             @id @default(uuid())
+  userId         String
+  personaId      String
+  availabilityId String             @unique
+  status         ReservationStatus  @default(PENDING)
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  persona      Persona      @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  availability Availability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  review       Review?
+
+  @@index([userId])
+  @@index([personaId])
+  @@index([userId, status])
+  @@index([personaId, status])
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  userId        String
+  personaId     String
+  reservationId String   @unique
+  rating        Int
+  comment       String?
+  isApproved    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  persona     Persona     @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([personaId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
