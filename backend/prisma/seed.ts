@@ -117,8 +117,15 @@ async function main() {
   const personas: any[] = [];
   for (const p of personasData) {
     const user = createdUsers[p.userIndex];
-    const persona = await prisma.persona.create({
-      data: {
+    const persona = await prisma.persona.upsert({
+      where: { userId: user.id },
+      update: {
+        headline: p.headline,
+        bio: p.bio,
+        hourlyRate: p.hourlyRate,
+        isVerified: true,
+      },
+      create: {
         userId: user.id,
         headline: p.headline,
         bio: p.bio,
@@ -144,10 +151,21 @@ async function main() {
     });
   }
 
-  // Create availability slots for personas
+  // Create availability slots for personas (only if none exist)
   const now = new Date();
   for (let i = 0; i < personas.length; i++) {
     const persona = personas[i];
+
+    // Check if persona already has availability slots
+    const existingCount = await prisma.availability.count({
+      where: { personaId: persona.id },
+    });
+
+    if (existingCount > 0) {
+      console.log(`Persona ${i + 1} already has ${existingCount} availability slots, skipping`);
+      continue;
+    }
+
     for (let day = 1; day <= 5; day++) {
       for (let hour = 9; hour <= 16; hour += 2) {
         const startTime = new Date(now);
