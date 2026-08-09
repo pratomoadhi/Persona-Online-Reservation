@@ -219,7 +219,7 @@ Authenticates a user and returns tokens.
 
 `POST /personas`
 
-**Auth:** Bearer token required (USER)
+**Auth:** Bearer token required (USER or ADMIN)
 
 **Request Body:**
 
@@ -231,6 +231,18 @@ Authenticates a user and returns tokens.
   "skillIds": ["uuid1", "uuid2"]
 }
 ```
+
+**Admin-only fields:**
+
+```json
+{
+  "userId": "uuid-of-target-user",
+  "isVerified": true
+}
+```
+
+- **USER** — creates a persona for themselves (cannot specify `userId` or `isVerified`)
+- **ADMIN** — can create a persona for any user by providing `userId`, and can set `isVerified`
 
 **Response:** `201 Created`
 
@@ -247,9 +259,22 @@ Authenticates a user and returns tokens.
 ```json
 {
   "headline": "Lead Software Engineer",
-  "bio": "Updated bio"
+  "bio": "Updated bio",
+  "hourlyRate": 75,
+  "skillIds": ["uuid1", "uuid2"]
 }
 ```
+
+**Admin-only fields:**
+
+```json
+{
+  "isVerified": true
+}
+```
+
+- **Owner** — can update headline, bio, hourlyRate, and skills
+- **ADMIN** — can update any persona, including verification status (`isVerified`)
 
 **Response:** `200 OK`
 
@@ -261,7 +286,36 @@ Authenticates a user and returns tokens.
 
 **Auth:** Bearer token required (owner or ADMIN)
 
+- **Owner** — can delete their own persona
+- **ADMIN** — can delete any persona
+
 **Response:** `204 No Content`
+
+---
+
+## Verify Persona
+
+`PATCH /personas/:id/verify`
+
+**Auth:** Bearer token required (ADMIN only)
+
+**Request Body:**
+
+```json
+{
+  "isVerified": true
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": "uuid",
+  "headline": "Senior Software Engineer",
+  "isVerified": true
+}
+```
 
 ---
 

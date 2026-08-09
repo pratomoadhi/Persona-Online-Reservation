@@ -215,13 +215,14 @@ After seeding, you can log in with:
 
 ### Personas
 
-| Method | Endpoint                  | Description               |
-|--------|---------------------------|---------------------------|
-| GET    | `/personas`               | List personas (searchable)|
-| GET    | `/personas/:id`           | Get persona by ID         |
-| POST   | `/personas`               | Create persona profile    |
-| PATCH  | `/personas/:id`           | Update persona (owner)    |
-| DELETE | `/personas/:id`           | Delete persona (owner)    |
+| Method | Endpoint                  | Description                          |
+|--------|---------------------------|--------------------------------------|
+| GET    | `/personas`               | List personas (searchable)           |
+| GET    | `/personas/:id`           | Get persona by ID                    |
+| POST   | `/personas`               | Create persona (USER or ADMIN)       |
+| PATCH  | `/personas/:id`           | Update persona (owner or ADMIN)      |
+| DELETE | `/personas/:id`           | Delete persona (owner or ADMIN)      |
+| PATCH  | `/personas/:id/verify`    | Verify persona (ADMIN only)          |
 
 ### Availability
 

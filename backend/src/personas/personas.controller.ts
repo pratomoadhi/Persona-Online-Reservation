@@ -2,7 +2,10 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, De
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PersonasService } from './personas.service';
 import { CreatePersonaDto, UpdatePersonaDto } from './dto/create-persona.dto';
+import { VerifyPersonaDto } from './dto/verify-persona.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Personas')
@@ -33,25 +36,50 @@ export class PersonasController {
 
   @Post()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Create a persona profile' })
-  async create(@CurrentUser('id') userId: string, @Body() dto: CreatePersonaDto) {
-    return this.personasService.create(userId, dto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Create a persona profile (Admin can create for any user)' })
+  async create(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
+    @Body() dto: CreatePersonaDto,
+  ) {
+    return this.personasService.create(userId, dto, role === 'ADMIN');
   }
 
   @Patch(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Update a persona profile' })
-  async update(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() dto: UpdatePersonaDto) {
-    return this.personasService.update(id, userId, dto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Update a persona profile (Owner or Admin)' })
+  async update(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
+    @Body() dto: UpdatePersonaDto,
+  ) {
+    return this.personasService.update(id, userId, dto, role === 'ADMIN');
   }
 
   @Delete(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Delete a persona profile' })
-  async remove(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.personasService.remove(id, userId);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Delete a persona profile (Owner or Admin)' })
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.personasService.remove(id, userId, role === 'ADMIN');
+  }
+
+  @Patch(':id/verify')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Verify or unverify a persona profile (Admin only)' })
+  async verify(
+    @Param('id') id: string,
+    @Body() dto: VerifyPersonaDto,
+  ) {
+    return this.personasService.verify(id, dto.isVerified);
   }
 }

@@ -41,7 +41,7 @@ export class PersonasService {
           ratingCount: true,
           isVerified: true,
           user: {
-            select: { id: true, fullName: true, avatarUrl: true },
+            select: { id: true, fullName: true, avatarUrl: true, email: true },
           },
           skills: {
             select: {
@@ -84,7 +84,7 @@ export class PersonasService {
         isVerified: true,
         createdAt: true,
         user: {
-          select: { id: true, fullName: true, avatarUrl: true },
+          select: { id: true, fullName: true, avatarUrl: true, email: true },
         },
         skills: {
           select: {
@@ -109,18 +109,33 @@ export class PersonasService {
     };
   }
 
-  async create(userId: string, dto: CreatePersonaDto) {
-    const existing = await this.prisma.persona.findUnique({ where: { userId } });
+  async create(userId: string, dto: CreatePersonaDto, isAdmin = false) {
+    // Admin can specify a target userId; regular users create for themselves
+    const targetUserId = isAdmin && dto.userId ? dto.userId : userId;
+
+    // For non-admin users, prevent role escalation attempts
+    if (!isAdmin && dto.userId) {
+      throw new ForbiddenException('Only admins can assign personas to other users');
+    }
+
+    // Validate the target user exists
+    const targetUser = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!targetUser) {
+      throw new NotFoundException('User not found. Cannot create a persona for a non-existent user.');
+    }
+
+    const existing = await this.prisma.persona.findUnique({ where: { userId: targetUserId } });
     if (existing) {
       throw new ConflictException('User already has a persona profile');
     }
 
     const persona = await this.prisma.persona.create({
       data: {
-        userId,
+        userId: targetUserId,
         headline: dto.headline,
         bio: dto.bio,
         hourlyRate: dto.hourlyRate,
+        isVerified: isAdmin ? (dto.isVerified ?? false) : false,
         skills: dto.skillIds
           ? {
               create: dto.skillIds.map((skillId) => ({ skillId })),
@@ -131,36 +146,64 @@ export class PersonasService {
 
     // Update user role to PERSONA
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: targetUserId },
       data: { role: 'PERSONA' },
     });
 
     return this.findById(persona.id);
   }
 
-  async update(id: string, userId: string, dto: UpdatePersonaDto) {
-    const persona = await this.prisma.persona.findUnique({ where: { id } });
+  async update(id: string, userId: string, dto: UpdatePersonaDto, isAdmin = false) {
+    const persona = await this.prisma.persona.findUnique({
+      where: { id },
+      include: { skills: true },
+    });
     if (!persona) {
       throw new NotFoundException('Persona not found');
     }
 
-    if (persona.userId !== userId) {
+    // Owner can update own persona; admin can update any persona
+    if (persona.userId !== userId && !isAdmin) {
       throw new ForbiddenException('You can only update your own persona');
     }
 
-    return this.prisma.persona.update({
+    // Non-admin users cannot change verification status
+    if (!isAdmin && dto.isVerified !== undefined) {
+      throw new ForbiddenException('Only admins can change verification status');
+    }
+
+    const data: any = {
+      ...(dto.headline !== undefined && { headline: dto.headline }),
+      ...(dto.bio !== undefined && { bio: dto.bio }),
+      ...(dto.hourlyRate !== undefined && { hourlyRate: dto.hourlyRate }),
+      ...(isAdmin && dto.isVerified !== undefined && { isVerified: dto.isVerified }),
+    };
+
+    // Handle skill replacement if skillIds provided
+    if (dto.skillIds) {
+      // Delete existing skills and create new ones
+      await this.prisma.personaSkill.deleteMany({ where: { personaId: id } });
+      data.skills = {
+        create: dto.skillIds.map((skillId) => ({ skillId })),
+      };
+    }
+
+    await this.prisma.persona.update({
       where: { id },
-      data: dto,
+      data,
     });
+
+    return this.findById(id);
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, isAdmin = false) {
     const persona = await this.prisma.persona.findUnique({ where: { id } });
     if (!persona) {
       throw new NotFoundException('Persona not found');
     }
 
-    if (persona.userId !== userId) {
+    // Owner can delete own persona; admin can delete any persona
+    if (persona.userId !== userId && !isAdmin) {
       throw new ForbiddenException('You can only delete your own persona');
     }
 
@@ -168,10 +211,22 @@ export class PersonasService {
 
     // Update user role back to USER
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: persona.userId },
       data: { role: 'USER' },
     });
 
     return { message: 'Persona deleted' };
+  }
+
+  async verify(id: string, isVerified: boolean) {
+    const persona = await this.prisma.persona.findUnique({ where: { id } });
+    if (!persona) {
+      throw new NotFoundException('Persona not found');
+    }
+
+    return this.prisma.persona.update({
+      where: { id },
+      data: { isVerified },
+    });
   }
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Search, User, LogOut, CalendarDays } from 'lucide-react';
+import { Search, User, LogOut, CalendarDays, ShieldCheck } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -29,6 +29,15 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              {user.role === 'ADMIN' && (
+                <Link
+                  href="/admin"
+                  className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 sm:flex"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
               <Link
                 href="/dashboard"
                 className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:flex"

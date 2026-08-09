@@ -70,6 +70,20 @@ Manages professional persona profiles.
 - `PersonasService` — persona business logic
 - `PersonaSearchService` — search and filtering
 
+**Permissions:**
+
+| Action                    | USER | PERSONA | ADMIN |
+|---------------------------|------|---------|-------|
+| List personas             | ✅   | ✅      | ✅    |
+| View persona details      | ✅   | ✅      | ✅    |
+| Create own persona        | ✅   | ❌      | ✅    |
+| Create persona for any user | ❌ | ❌      | ✅    |
+| Update own persona        | ❌   | ✅      | ✅    |
+| Update any persona        | ❌   | ❌      | ✅    |
+| Delete own persona        | ❌   | ✅      | ✅    |
+| Delete any persona        | ❌   | ❌      | ✅    |
+| Verify/unverify persona   | ❌   | ❌      | ✅    |
+
 ---
 
 # SkillsModule
