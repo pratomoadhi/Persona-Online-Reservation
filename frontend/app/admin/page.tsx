@@ -205,6 +205,7 @@ export default function AdminPage() {
       skillIds: [],
       isVerified: false,
     });
+    setShowNewUserForm(false);
     setFormError('');
     setShowCreateModal(true);
   };
@@ -379,7 +380,10 @@ export default function AdminPage() {
                 {editingPersona ? 'Edit Expert' : 'Add New Expert'}
               </h3>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setShowNewUserForm(false);
+                }}
                 className="rounded-lg p-1 hover:bg-gray-100"
               >
                 <X className="h-5 w-5 text-gray-500" />
@@ -594,7 +598,10 @@ export default function AdminPage() {
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setShowNewUserForm(false);
+                }}
                 className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
