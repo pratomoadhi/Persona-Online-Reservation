@@ -38,3 +38,6 @@ Thumbs.db
 # Prisma
 backend/prisma/*.db
 backend/prisma/*.db-journal
+
+# Uploaded media (stored locally on the backend server)
+backend/uploads/
