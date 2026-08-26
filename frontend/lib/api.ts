@@ -51,6 +51,7 @@ export interface Skill {
   id: string;
   name: string;
   category: string | null;
+  _count?: { personas: number };
 }
 
 export interface Persona {

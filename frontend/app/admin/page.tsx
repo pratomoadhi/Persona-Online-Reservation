@@ -40,6 +40,10 @@ export default function AdminPage() {
     role: 'PERSONA' as 'USER' | 'PERSONA' | 'ADMIN',
   });
   const [formError, setFormError] = useState('');
+  const [showSkillsModal, setShowSkillsModal] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
+  const [skillForm, setSkillForm] = useState({ name: '', category: '' });
+  const [skillFormError, setSkillFormError] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -102,6 +106,83 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
+
+  const createSkillMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/skills', {
+        name: skillForm.name,
+        category: skillForm.category || undefined,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
+      setSkillForm({ name: '', category: '' });
+      setSkillFormError('');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      setSkillFormError(error.response?.data?.message || 'Failed to create skill');
+    },
+  });
+
+  const updateSkillMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingSkill) return;
+      const res = await api.patch(`/skills/${editingSkill.id}`, {
+        name: skillForm.name,
+        category: skillForm.category || undefined,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
+      setEditingSkill(null);
+      setSkillForm({ name: '', category: '' });
+      setSkillFormError('');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      setSkillFormError(error.response?.data?.message || 'Failed to update skill');
+    },
+  });
+
+  const deleteSkillMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/skills/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
+    },
+  });
+
+  const openCreateSkill = () => {
+    setEditingSkill(null);
+    setSkillForm({ name: '', category: '' });
+    setSkillFormError('');
+  };
+
+  const openEditSkill = (skill: Skill) => {
+    setEditingSkill(skill);
+    setSkillForm({ name: skill.name, category: skill.category || '' });
+    setSkillFormError('');
+  };
+
+  const handleSaveSkill = () => {
+    if (!skillForm.name.trim()) {
+      setSkillFormError('Please enter a skill name');
+      return;
+    }
+    if (editingSkill) {
+      updateSkillMutation.mutate();
+    } else {
+      createSkillMutation.mutate();
+    }
+  };
 
   const createUserMutation = useMutation({
     mutationFn: async () => {
@@ -254,13 +335,25 @@ export default function AdminPage() {
           </h1>
           <p className="mt-2 text-gray-600">Manage experts (personas) on the platform</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          <Plus className="h-4 w-4" />
-          Add Expert
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowSkillsModal(true);
+              openCreateSkill();
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Pencil className="h-4 w-4" />
+            Manage Skills
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add Expert
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -373,9 +466,9 @@ export default function AdminPage() {
 
       {/* Create/Edit Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 pt-6 pb-4">
               <h3 className="text-lg font-bold text-gray-900">
                 {editingPersona ? 'Edit Expert' : 'Add New Expert'}
               </h3>
@@ -390,13 +483,14 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {formError && (
-              <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                {formError}
-              </div>
-            )}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {formError && (
+                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {formError}
+                </div>
+              )}
 
-            <div className="mt-4 space-y-4">
+              <div className="space-y-4">
               {!editingPersona && !showNewUserForm && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -594,9 +688,10 @@ export default function AdminPage() {
                   Verified expert
                 </label>
               </div>
+              </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="flex gap-3 border-t border-gray-100 px-6 py-4">
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -621,6 +716,131 @@ export default function AdminPage() {
                     ? 'Save Changes'
                     : 'Create Expert'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Manage Skills Modal */}
+      {showSkillsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 pt-6 pb-4">
+              <h3 className="text-lg font-bold text-gray-900">Manage Skills</h3>
+              <button
+                onClick={() => setShowSkillsModal(false)}
+                className="rounded-lg p-1 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {skillFormError && (
+                <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {skillFormError}
+                </div>
+              )}
+
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                <h4 className="text-sm font-semibold text-indigo-900">
+                  {editingSkill ? 'Edit Skill' : 'Add New Skill'}
+                </h4>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name *</label>
+                    <input
+                      type="text"
+                      value={skillForm.name}
+                      onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="e.g. React"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <input
+                      type="text"
+                      value={skillForm.category}
+                      onChange={(e) => setSkillForm({ ...skillForm, category: e.target.value })}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="e.g. Frontend"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveSkill}
+                    disabled={createSkillMutation.isPending || updateSkillMutation.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {createSkillMutation.isPending || updateSkillMutation.isPending
+                      ? editingSkill
+                        ? 'Saving...'
+                        : 'Adding...'
+                      : editingSkill
+                        ? 'Save Skill'
+                        : 'Add Skill'}
+                  </button>
+                  {editingSkill && (
+                    <button
+                      type="button"
+                      onClick={openCreateSkill}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {skills && skills.length > 0 ? (
+                  skills.map((skill) => (
+                    <div
+                      key={skill.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">{skill.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {skill.category || 'No category'} · {skill._count?.personas ?? 0} expert(s)
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => openEditSkill(skill)}
+                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                          aria-label={`Edit ${skill.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Delete skill "${skill.name}"? This will remove it from all experts.`,
+                              )
+                            ) {
+                              deleteSkillMutation.mutate(skill.id);
+                            }
+                          }}
+                          disabled={deleteSkillMutation.isPending}
+                          className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                          aria-label={`Delete ${skill.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-sm text-gray-500">
+                    No skills yet. Add one above.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
