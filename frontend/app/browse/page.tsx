@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { api, Persona } from '@/lib/api';
+import { api, Persona, mediaUrl } from '@/lib/api';
 import { Search, Star, BadgeCheck } from 'lucide-react';
 
 export default function BrowsePage() {
@@ -76,8 +76,16 @@ export default function BrowsePage() {
             key={persona.id}
             className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 sm:flex-row sm:items-center"
           >
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
-              {persona.user.fullName.charAt(0)}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
+              {(() => {
+                const img = persona.media?.find((m) => m.type === 'IMAGE');
+                return img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mediaUrl(img.url)} alt={persona.user.fullName} className="h-full w-full object-cover" />
+                ) : (
+                  persona.user.fullName.charAt(0)
+                );
+              })()}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">

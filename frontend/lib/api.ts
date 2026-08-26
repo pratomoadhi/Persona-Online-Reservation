@@ -2,6 +2,12 @@ import axios from 'axios';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+// Origin of the backend (uploads are served at /uploads, outside the /api/v1 prefix)
+export const API_ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
+
+export const mediaUrl = (path: string) =>
+  path.startsWith('http') ? path : `${API_ORIGIN}${path}`;
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -54,6 +60,15 @@ export interface Skill {
   _count?: { personas: number };
 }
 
+export type MediaType = 'IMAGE' | 'VIDEO';
+
+export interface PersonaMedia {
+  id: string;
+  type: MediaType;
+  url: string;
+  caption: string | null;
+}
+
 export interface Persona {
   id: string;
   headline: string;
@@ -68,6 +83,7 @@ export interface Persona {
     avatarUrl: string | null;
   };
   skills: Skill[];
+  media?: PersonaMedia[];
 }
 
 export interface AvailabilitySlot {

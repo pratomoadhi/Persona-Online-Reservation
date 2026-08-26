@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, PersonaDetail, AvailabilitySlot } from '@/lib/api';
+import { api, PersonaDetail, AvailabilitySlot, mediaUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Star, BadgeCheck, CalendarDays, Clock, X } from 'lucide-react';
 
@@ -81,8 +81,16 @@ export default function PersonaDetailPage() {
       {/* Profile Header */}
       <div className="rounded-2xl border border-gray-200 bg-white p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600">
-            {persona.user.fullName.charAt(0)}
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600">
+            {(() => {
+              const img = persona.media?.find((m) => m.type === 'IMAGE');
+              return img ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={mediaUrl(img.url)} alt={persona.user.fullName} className="h-full w-full object-cover" />
+              ) : (
+                persona.user.fullName.charAt(0)
+              );
+            })()}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -121,6 +129,37 @@ export default function PersonaDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Showcase (photos & videos describing the expert's skills) */}
+      {persona.media && persona.media.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-4 text-xl font-bold text-gray-900">Showcase</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {persona.media.map((m) => (
+              <div
+                key={m.id}
+                className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+              >
+                {m.type === 'VIDEO' ? (
+                  <video
+                    src={mediaUrl(m.url)}
+                    controls
+                    className="aspect-video w-full bg-black object-contain"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={mediaUrl(m.url)}
+                    alt={m.caption || `${persona.user.fullName} media`}
+                    className="aspect-video w-full object-cover"
+                  />
+                )}
+                {m.caption && <p className="px-4 py-3 text-sm text-gray-600">{m.caption}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Availability */}
       <div className="mt-8">

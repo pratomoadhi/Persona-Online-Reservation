@@ -33,6 +33,11 @@ enum NotificationType {
   SYSTEM
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -62,8 +67,9 @@ model Persona {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   skills        PersonaSkill[]
+  media         PersonaMedia[]
   availability  Availability[]
   reservations  Reservation[]
   reviews       Review[]
@@ -92,6 +98,19 @@ model PersonaSkill {
   @@id([personaId, skillId])
   @@index([personaId])
   @@index([skillId])
+}
+
+model PersonaMedia {
+  id        String    @id @default(uuid())
+  personaId String
+  type      MediaType
+  url       String
+  caption   String?
+  createdAt DateTime  @default(now())
+
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@index([personaId])
 }
 
 model Availability {

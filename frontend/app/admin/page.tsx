@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, Persona, Skill } from '@/lib/api';
+import { api, Persona, Skill, MediaType, PersonaMedia, mediaUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { Search, Star, BadgeCheck, ShieldCheck, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { Search, Star, BadgeCheck, ShieldCheck, Plus, Pencil, Trash2, X, Check, Upload, Film } from 'lucide-react';
 
 interface AdminUser {
   id: string;
@@ -13,6 +13,13 @@ interface AdminUser {
   fullName: string;
   role: string;
   persona: { id: string; headline: string } | null;
+}
+
+interface PendingMedia {
+  file: File;
+  type: MediaType;
+  caption: string;
+  preview: string;
 }
 
 export default function AdminPage() {
@@ -44,6 +51,14 @@ export default function AdminPage() {
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [skillForm, setSkillForm] = useState({ name: '', category: '' });
   const [skillFormError, setSkillFormError] = useState('');
+  const [mediaInput, setMediaInput] = useState<{ type: MediaType; caption: string }>({
+    type: 'IMAGE',
+    caption: '',
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [pendingMedia, setPendingMedia] = useState<PendingMedia[]>([]);
+  const [mediaError, setMediaError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -237,6 +252,91 @@ export default function AdminPage() {
     createUserMutation.mutate();
   };
 
+  const mediaUploadMutation = useMutation({
+    mutationFn: async ({
+      personaId,
+      file,
+      type,
+      caption,
+    }: {
+      personaId: string;
+      file: File;
+      type: MediaType;
+      caption: string;
+    }) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('type', type);
+      if (caption) fd.append('caption', caption);
+      const res = await api.post(`/personas/${personaId}/media`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
+      setSelectedFile(null);
+      setMediaInput({ type: 'IMAGE', caption: '' });
+      setMediaError('');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      setMediaError(error.response?.data?.message || 'Failed to upload media');
+    },
+  });
+
+  const mediaDeleteMutation = useMutation({
+    mutationFn: async (mediaId: string) => {
+      const res = await api.delete(`/personas/media/${mediaId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      setMediaError(error.response?.data?.message || 'Failed to delete media');
+    },
+  });
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    const detected = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+    setMediaInput((prev) => ({ ...prev, type: detected }));
+  };
+
+  const handleMediaUpload = () => {
+    setMediaError('');
+    if (!selectedFile) {
+      setMediaError('Choose a file first.');
+      return;
+    }
+    if (editingPersona) {
+      mediaUploadMutation.mutate({
+        personaId: editingPersona.id,
+        file: selectedFile,
+        type: mediaInput.type,
+        caption: mediaInput.caption,
+      });
+    } else {
+      // Creating new expert: queue the file and upload after the persona is created
+      setPendingMedia((prev) => [
+        ...prev,
+        {
+          file: selectedFile,
+          type: mediaInput.type,
+          caption: mediaInput.caption,
+          preview: URL.createObjectURL(selectedFile),
+        },
+      ]);
+      setSelectedFile(null);
+      setMediaInput({ type: 'IMAGE', caption: '' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
@@ -256,7 +356,26 @@ export default function AdminPage() {
         return res.data;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data: Persona) => {
+      // Upload any queued media files after the persona exists (create mode)
+      try {
+        if (pendingMedia.length > 0) {
+          const personaId = editingPersona ? editingPersona.id : data.id;
+          for (const m of pendingMedia) {
+            const fd = new FormData();
+            fd.append('file', m.file);
+            fd.append('type', m.type);
+            if (m.caption) fd.append('caption', m.caption);
+            await api.post(`/personas/${personaId}/media`, fd, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          }
+          setPendingMedia([]);
+        }
+      } catch {
+        setMediaError('Expert saved, but one or more media uploads failed.');
+      }
+
       queryClient.invalidateQueries({ queryKey: ['admin-personas'] });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setShowCreateModal(false);
@@ -269,6 +388,9 @@ export default function AdminPage() {
         skillIds: [],
         isVerified: false,
       });
+      setSelectedFile(null);
+      setMediaInput({ type: 'IMAGE', caption: '' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { message?: string } } };
@@ -288,6 +410,11 @@ export default function AdminPage() {
     });
     setShowNewUserForm(false);
     setFormError('');
+    setMediaError('');
+    setSelectedFile(null);
+    setPendingMedia([]);
+    setMediaInput({ type: 'IMAGE', caption: '' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setShowCreateModal(true);
   };
 
@@ -302,6 +429,11 @@ export default function AdminPage() {
       isVerified: persona.isVerified,
     });
     setFormError('');
+    setMediaError('');
+    setSelectedFile(null);
+    setPendingMedia([]);
+    setMediaInput({ type: 'IMAGE', caption: '' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setShowCreateModal(true);
   };
 
@@ -394,8 +526,16 @@ export default function AdminPage() {
             key={persona.id}
             className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 sm:flex-row sm:items-center"
           >
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
-              {persona.user.fullName.charAt(0)}
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
+              {(() => {
+                const img = persona.media?.find((m) => m.type === 'IMAGE');
+                return img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mediaUrl(img.url)} alt={persona.user.fullName} className="h-full w-full object-cover" />
+                ) : (
+                  persona.user.fullName.charAt(0)
+                );
+              })()}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -687,6 +827,143 @@ export default function AdminPage() {
                 <label htmlFor="isVerified" className="text-sm font-medium text-gray-700">
                   Verified expert
                 </label>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <Film className="h-4 w-4 text-gray-500" />
+                  Media (Photos &amp; Videos)
+                </h4>
+                <p className="mt-1 text-xs text-gray-500">
+                  Unique to this expert — showcase work samples, certificates, or an intro video.
+                </p>
+
+                {mediaError && (
+                  <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">
+                    {mediaError}
+                  </div>
+                )}
+
+                {(editingPersona?.media?.length ?? 0) > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {editingPersona?.media?.map((m) => (
+                      <div
+                        key={m.id}
+                        className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-white"
+                      >
+                        {m.type === 'VIDEO' ? (
+                          <video src={mediaUrl(m.url)} muted className="h-full w-full object-cover" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={mediaUrl(m.url)}
+                            alt={m.caption || 'Expert media'}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          <Film className="h-3 w-3" /> VID
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (confirm('Delete this media item?')) mediaDeleteMutation.mutate(m.id);
+                          }}
+                          className="absolute right-1 top-1 rounded bg-red-600 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-label="Delete media"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!editingPersona && pendingMedia.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {pendingMedia.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-white"
+                      >
+                        {m.type === 'VIDEO' ? (
+                          <video src={m.preview} muted className="h-full w-full object-cover" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={m.preview}
+                            alt={m.caption || 'Pending media'}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          <Film className="h-3 w-3" /> VID
+                        </span>
+                        <button
+                          onClick={() =>
+                            setPendingMedia((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="absolute right-1 top-1 rounded bg-red-600 p-1 text-white"
+                          aria-label="Remove pending media"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 space-y-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                    onChange={handleFileSelected}
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-600 hover:file:bg-indigo-100"
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Type</label>
+                      <select
+                        value={mediaInput.type}
+                        onChange={(e) =>
+                          setMediaInput({ ...mediaInput, type: e.target.value as MediaType })
+                        }
+                        className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="IMAGE">Image</option>
+                        <option value="VIDEO">Video</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Caption</label>
+                      <input
+                        type="text"
+                        value={mediaInput.caption}
+                        onChange={(e) => setMediaInput({ ...mediaInput, caption: e.target.value })}
+                        className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="Describe the skill shown..."
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleMediaUpload}
+                    disabled={mediaUploadMutation.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {mediaUploadMutation.isPending
+                      ? 'Uploading...'
+                      : editingPersona
+                        ? 'Upload Media'
+                        : 'Queue for upload'}
+                  </button>
+                  {!editingPersona && (
+                    <p className="text-xs text-gray-500">
+                      Files will upload after the expert is created.
+                    </p>
+                  )}
+                </div>
               </div>
               </div>
             </div>

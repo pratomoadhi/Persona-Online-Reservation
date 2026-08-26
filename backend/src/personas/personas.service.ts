@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { join } from 'path';
+import { rm } from 'fs/promises';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePersonaDto, UpdatePersonaDto } from './dto/create-persona.dto';
 
@@ -48,6 +50,10 @@ export class PersonasService {
               skill: { select: { id: true, name: true, category: true } },
             },
           },
+          media: {
+            select: { id: true, type: true, url: true, caption: true },
+            orderBy: { createdAt: 'asc' },
+          },
         },
       }),
       this.prisma.persona.count({ where }),
@@ -64,6 +70,7 @@ export class PersonasService {
         isVerified: p.isVerified,
         user: p.user,
         skills: p.skills.map((s) => s.skill),
+        media: p.media,
       })),
       total,
       page,
@@ -91,6 +98,10 @@ export class PersonasService {
             level: true,
             skill: { select: { id: true, name: true, category: true } },
           },
+        },
+        media: {
+          select: { id: true, type: true, url: true, caption: true },
+          orderBy: { createdAt: 'asc' },
         },
         availability: {
           where: { isBooked: false, startTime: { gt: new Date() } },
@@ -215,7 +226,38 @@ export class PersonasService {
       data: { role: 'USER' },
     });
 
+    // Remove uploaded media files from disk
+    const uploadDir = join(process.cwd(), 'uploads', 'personas', id);
+    await rm(uploadDir, { recursive: true, force: true }).catch(() => undefined);
+
     return { message: 'Persona deleted' };
+  }
+
+  async addMedia(personaId: string, type: 'IMAGE' | 'VIDEO', url: string, caption?: string) {
+    const persona = await this.prisma.persona.findUnique({ where: { id: personaId } });
+    if (!persona) {
+      throw new NotFoundException('Persona not found');
+    }
+
+    return this.prisma.personaMedia.create({
+      data: { personaId, type, url, caption },
+      select: { id: true, personaId: true, type: true, url: true, caption: true, createdAt: true },
+    });
+  }
+
+  async removeMedia(mediaId: string) {
+    const media = await this.prisma.personaMedia.findUnique({ where: { id: mediaId } });
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+
+    await this.prisma.personaMedia.delete({ where: { id: mediaId } });
+
+    // Delete the physical file from disk
+    const filePath = join(process.cwd(), media.url.replace(/^\/+/, ''));
+    await rm(filePath, { force: true }).catch(() => undefined);
+
+    return { message: 'Media deleted' };
   }
 
   async verify(id: string, isVerified: boolean) {
