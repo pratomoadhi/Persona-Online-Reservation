@@ -152,7 +152,7 @@ export class PersonasController {
     FileInterceptor('file', {
       storage: mediaStorage,
       fileFilter: mediaFileFilter,
-      limits: { fileSize: 50 * 1024 * 1024 },
+      limits: { fileSize: 100 * 1024 * 1024 },
     }),
   )
   async uploadMedia(
