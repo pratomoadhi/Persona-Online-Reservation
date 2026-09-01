@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, PersonaDetail, AvailabilitySlot, mediaUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { Avatar } from '@/components/avatar';
 import { Star, BadgeCheck, CalendarDays, Clock, X } from 'lucide-react';
 
 export default function PersonaDetailPage() {
@@ -81,17 +82,16 @@ export default function PersonaDetailPage() {
       {/* Profile Header */}
       <div className="rounded-2xl border border-gray-200 bg-white p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600">
-            {(() => {
-              const img = persona.media?.find((m) => m.type === 'IMAGE');
-              return img ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaUrl(img.url)} alt={persona.user.fullName} className="h-full w-full object-cover" />
-              ) : (
-                persona.user.fullName.charAt(0)
-              );
-            })()}
-          </div>
+          {(() => {
+            const img = persona.media?.find((m) => m.type === 'IMAGE');
+            return (
+              <Avatar
+                src={persona.user.avatarUrl ?? img?.url}
+                name={persona.user.fullName}
+                className="h-24 w-24 text-3xl"
+              />
+            );
+          })()}
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">{persona.user.fullName}</h1>

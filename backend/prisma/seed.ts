@@ -25,22 +25,43 @@ async function main() {
   const userPassword = await bcrypt.hash('password123', 10);
 
   const usersData = [
-    { email: 'john@example.com', fullName: 'John Doe' },
-    { email: 'jane@example.com', fullName: 'Jane Smith' },
-    { email: 'mike@example.com', fullName: 'Mike Johnson' },
-    { email: 'sarah@example.com', fullName: 'Sarah Wilson' },
-    { email: 'david@example.com', fullName: 'David Brown' },
+    {
+      email: 'john@example.com',
+      fullName: 'John Doe',
+      avatarUrl: 'https://i.pravatar.cc/150?u=john@example.com',
+    },
+    {
+      email: 'jane@example.com',
+      fullName: 'Jane Smith',
+      avatarUrl: 'https://i.pravatar.cc/150?u=jane@example.com',
+    },
+    {
+      email: 'mike@example.com',
+      fullName: 'Mike Johnson',
+      avatarUrl: 'https://i.pravatar.cc/150?u=mike@example.com',
+    },
+    {
+      email: 'sarah@example.com',
+      fullName: 'Sarah Wilson',
+      avatarUrl: 'https://i.pravatar.cc/150?u=sarah@example.com',
+    },
+    {
+      email: 'david@example.com',
+      fullName: 'David Brown',
+      avatarUrl: 'https://i.pravatar.cc/150?u=david@example.com',
+    },
   ];
 
   const createdUsers: any[] = [];
   for (const u of usersData) {
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: { avatarUrl: u.avatarUrl },
       create: {
         email: u.email,
         passwordHash: userPassword,
         fullName: u.fullName,
+        avatarUrl: u.avatarUrl,
         isVerified: true,
       },
     });

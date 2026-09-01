@@ -149,6 +149,32 @@ Authenticates a user and returns tokens.
 
 ---
 
+## Upload Current User Avatar
+
+`POST /users/me/avatar`
+
+**Auth:** Bearer token required
+**Content-Type:** `multipart/form-data`
+
+**Request Body:** multipart form with a single `file` field containing the image. Allowed types: `jpeg`, `png`, `gif`, `webp`, `bmp` (max 5MB).
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "fullName": "John Doe",
+  "avatarUrl": "/uploads/avatars/{userId}/1710000000000-ab12cd34.jpg",
+  "role": "USER",
+  "createdAt": "2026-01-01T00:00:00Z"
+}
+```
+
+> Uploading a new avatar automatically removes the previously uploaded avatar file. The updated `avatarUrl` is reflected everywhere the profile picture is displayed (navbar, profile, browse, bookings, persona pages).
+
+---
+
 # Personas
 
 ## List Personas

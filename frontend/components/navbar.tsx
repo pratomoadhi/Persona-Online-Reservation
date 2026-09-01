@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Search, User, LogOut, CalendarDays, ShieldCheck } from 'lucide-react';
+import { Search, LogOut, CalendarDays, ShieldCheck } from 'lucide-react';
+import { Avatar } from '@/components/avatar';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -49,9 +50,7 @@ export function Navbar() {
                 href="/profile"
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-                  <User className="h-4 w-4 text-indigo-600" />
-                </div>
+                <Avatar src={user.avatarUrl} name={user.fullName} className="h-8 w-8 text-sm" />
                 <span className="hidden sm:inline">{user.fullName}</span>
               </Link>
               <button

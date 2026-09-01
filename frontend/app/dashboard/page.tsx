@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Reservation } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { Avatar } from '@/components/avatar';
 import { CalendarDays, Clock, CalendarCheck, CalendarX } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
@@ -81,9 +82,11 @@ export default function DashboardPage() {
               key={reservation.id}
               className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 sm:flex-row sm:items-center"
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-600">
-                {reservation.persona.user.fullName.charAt(0)}
-              </div>
+              <Avatar
+                src={reservation.persona.user.avatarUrl}
+                name={reservation.persona.user.fullName}
+                className="h-12 w-12 text-lg"
+              />
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">
                   {reservation.persona.user.fullName}

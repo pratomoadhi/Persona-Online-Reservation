@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { api, Persona, mediaUrl } from '@/lib/api';
+import { api, Persona } from '@/lib/api';
+import { Avatar } from '@/components/avatar';
 import { Search, Star, BadgeCheck } from 'lucide-react';
 
 export default function BrowsePage() {
@@ -76,17 +77,16 @@ export default function BrowsePage() {
             key={persona.id}
             className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 sm:flex-row sm:items-center"
           >
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
-              {(() => {
-                const img = persona.media?.find((m) => m.type === 'IMAGE');
-                return img ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mediaUrl(img.url)} alt={persona.user.fullName} className="h-full w-full object-cover" />
-                ) : (
-                  persona.user.fullName.charAt(0)
-                );
-              })()}
-            </div>
+            {(() => {
+              const img = persona.media?.find((m) => m.type === 'IMAGE');
+              return (
+                <Avatar
+                  src={persona.user.avatarUrl ?? img?.url}
+                  name={persona.user.fullName}
+                  className="h-16 w-16 text-xl"
+                />
+              );
+            })()}
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold text-gray-900">{persona.user.fullName}</h3>

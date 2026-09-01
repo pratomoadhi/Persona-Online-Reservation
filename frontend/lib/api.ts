@@ -8,6 +8,19 @@ export const API_ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
 export const mediaUrl = (path: string) =>
   path.startsWith('http') ? path : `${API_ORIGIN}${path}`;
 
+/**
+ * Upload a profile picture for the currently authenticated user.
+ * Returns the updated user object.
+ */
+export async function uploadAvatar(file: File): Promise<User> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/users/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data as User;
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
