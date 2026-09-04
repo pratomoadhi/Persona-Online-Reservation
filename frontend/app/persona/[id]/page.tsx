@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, PersonaDetail, AvailabilitySlot, mediaUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Avatar } from '@/components/avatar';
+import LazyVideo from '@/components/lazy-video';
 import { Star, BadgeCheck, CalendarDays, Clock, X } from 'lucide-react';
 
 export default function PersonaDetailPage() {
@@ -141,10 +142,14 @@ export default function PersonaDetailPage() {
                 className="overflow-hidden rounded-xl border border-gray-200 bg-white"
               >
                 {m.type === 'VIDEO' ? (
-                  <video
+                  <LazyVideo
                     src={mediaUrl(m.url)}
                     controls
-                    className="aspect-video w-full bg-black object-contain"
+                    clickToPlay
+                    playsInline
+                    label={`Play ${persona.user.fullName} video`}
+                    className="aspect-video w-full bg-black"
+                    videoClassName="object-contain"
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element

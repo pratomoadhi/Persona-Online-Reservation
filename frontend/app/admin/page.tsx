@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Persona, Skill, MediaType, PersonaMedia, mediaUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import LazyVideo from '@/components/lazy-video';
 import { Search, Star, BadgeCheck, ShieldCheck, Plus, Pencil, Trash2, X, Check, Upload, Film } from 'lucide-react';
 
 interface AdminUser {
@@ -852,7 +853,13 @@ export default function AdminPage() {
                         className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-white"
                       >
                         {m.type === 'VIDEO' ? (
-                          <video src={mediaUrl(m.url)} muted className="h-full w-full object-cover" />
+                          <LazyVideo
+                            src={mediaUrl(m.url)}
+                            muted
+                            label="Preview video"
+                            className="h-full w-full"
+                            videoClassName="object-cover"
+                          />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -861,14 +868,14 @@ export default function AdminPage() {
                             className="h-full w-full object-cover"
                           />
                         )}
-                        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                        <span className="absolute left-1 top-1 z-20 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
                           <Film className="h-3 w-3" /> VID
                         </span>
                         <button
                           onClick={() => {
                             if (confirm('Delete this media item?')) mediaDeleteMutation.mutate(m.id);
                           }}
-                          className="absolute right-1 top-1 rounded bg-red-600 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          className="absolute right-1 top-1 z-20 rounded bg-red-600 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                           aria-label="Delete media"
                         >
                           <Trash2 className="h-3 w-3" />
